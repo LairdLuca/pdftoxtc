@@ -12,6 +12,10 @@ import {
   type ConvertOptions, type PageConfig
 } from './lib/pipeline'
 import { buildXtcFromPages } from './lib/encode/xtc'
+import { TextFlow, type FlowParagraph } from './lib/epub/extract'
+import { extractPageFragments, chaptersFromOutline } from './lib/epub/pdf-text'
+import { buildEpub, type EpubChapter } from './lib/epub/build'
+import TextPreview from './components/TextPreview'
 import { downloadBlob } from './lib/download'
 
 export interface PageOverride {
@@ -35,8 +39,9 @@ export default function App() {
   const [current, setCurrent] = useState(1)
   const [origUrl, setOrigUrl] = useState<string | null>(null)
   const [outUrls, setOutUrls] = useState<string[]>([])
+  const [textPreview, setTextPreview] = useState<FlowParagraph[] | null>(null)
   const [exportMeta, setExportMeta] = useState({
-    fileNameBase: '', title: '', author: '', rangeFrom: 1, rangeTo: 1
+    fileNameBase: '', title: '', author: '', language: 'en', rangeFrom: 1, rangeTo: 1
   })
   const [exporting, setExporting] = useState<{ done: number; total: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -67,7 +72,9 @@ export default function App() {
       setOrigUrl(null)
       setOutUrls([])
       const base = file.name.replace(/\.pdf$/i, '')
-      setExportMeta({ fileNameBase: base, title: base, author: '', rangeFrom: 1, rangeTo: pdf.numPages })
+      setExportMeta(prev => ({
+        ...prev, fileNameBase: base, title: base, author: '', rangeFrom: 1, rangeTo: pdf.numPages
+      }))
     } catch (e) {
       setError(`Could not open PDF: ${e instanceof Error ? e.message : String(e)}`)
     }
@@ -113,6 +120,17 @@ export default function App() {
         }
         setOrigUrl(orig)
         const cfg = configFor(current)
+        if (options.format === 'epub') {
+          setTextPreview(null)
+          const flow = new TextFlow()
+          for (const region of await extractPageFragments(doc, current, cfg)) {
+            flow.append(region)
+          }
+          if (previewToken.current !== token) return
+          setTextPreview(flow.paragraphs)
+          setOutUrls([])
+          return
+        }
         const outs = processPage(canvas, cfg, options)
         if (previewToken.current !== token) return
         setOutUrls(outs.map(c => c.toDataURL()))
@@ -146,13 +164,62 @@ export default function App() {
     }
   }
 
+  const handleExportEpub = async () => {
+    if (!doc) return
+    const { rangeFrom, rangeTo, fileNameBase, title, author, language } = exportMeta
+    const total = rangeTo - rangeFrom + 1
+    setExporting({ done: 0, total })
+
+    const ranges = await chaptersFromOutline(doc, rangeFrom, rangeTo)
+    if (ranges.length === 0) {
+      ranges.push({ title: '', from: rangeFrom, to: rangeTo })
+    }
+
+    const chapters: EpubChapter[] = []
+    let done = 0
+    let totalParagraphs = 0
+    for (const range of ranges) {
+      const flow = new TextFlow()
+      for (let p = range.from; p <= range.to; p++) {
+        let cfg: PageConfig = configFor(p)
+        if (!analyses[p] && !overrides[p]?.mode) {
+          const canvas = await renderPageToCanvas(doc, p, ANALYSIS_WIDTH)
+          const ctx = canvas.getContext('2d', { willReadFrequently: true })!
+          const a = analyzePage(ctx.getImageData(0, 0, canvas.width, canvas.height))
+          cfg = { mode: a.mode, splitX: overrides[p]?.splitX ?? a.splitX }
+        }
+        for (const region of await extractPageFragments(doc, p, cfg)) {
+          flow.append(region)
+        }
+        setExporting({ done: ++done, total })
+        await yieldToUi()
+      }
+      totalParagraphs += flow.paragraphs.length
+      chapters.push({ title: range.title, paragraphs: flow.paragraphs })
+    }
+
+    if (totalParagraphs === 0) {
+      throw new Error('no extractable text found — this PDF looks scanned. Use XTC/XTCH instead.')
+    }
+
+    const epub = buildEpub(
+      { title: title || fileNameBase, author, language },
+      chapters.filter(c => c.paragraphs.length > 0 || c.title)
+    )
+    downloadBlob(epub, `${fileNameBase.trim()}.epub`)
+  }
+
   const handleExport = async () => {
     if (!doc || exporting) return
     setError(null)
-    const { rangeFrom, rangeTo, fileNameBase, title, author } = exportMeta
-    const total = rangeTo - rangeFrom + 1
-    setExporting({ done: 0, total })
     try {
+      if (options.format === 'epub') {
+        await handleExportEpub()
+        return
+      }
+      const { rangeFrom, rangeTo, fileNameBase, title, author } = exportMeta
+      const total = rangeTo - rangeFrom + 1
+      setExporting({ done: 0, total })
       const blobs: ArrayBuffer[] = []
       for (let p = rangeFrom; p <= rangeTo; p++) {
         const canvas = await renderPageToCanvas(doc, p, EXPORT_WIDTH)
@@ -220,10 +287,11 @@ export default function App() {
             fileNameBase={exportMeta.fileNameBase}
             title={exportMeta.title}
             author={exportMeta.author}
+            language={exportMeta.language}
             rangeFrom={exportMeta.rangeFrom}
             rangeTo={exportMeta.rangeTo}
             numPages={numPages}
-            extension={options.format === 'xtch' ? 'xtch' : 'xtc'}
+            extension={options.format === 'xtc' ? 'xtc' : options.format === 'xtch' ? 'xtch' : 'epub'}
             exporting={exporting}
             onChange={patch => setExportMeta(prev => ({ ...prev, ...patch }))}
             onExport={handleExport}
@@ -240,10 +308,12 @@ export default function App() {
             onSplitChange={f => setOverride(current, { mode: 'two', splitX: f })}
             onModeChange={handleModeChange}
           />
-          <OutputPreview
-            urls={outUrls}
-            deviceLabel={`${options.device} ${dims.width}x${dims.height}`}
-          />
+          {options.format === 'epub'
+            ? <TextPreview paragraphs={textPreview} />
+            : <OutputPreview
+                urls={outUrls}
+                deviceLabel={`${options.device} ${dims.width}x${dims.height}`}
+              />}
         </main>
       </div>
 

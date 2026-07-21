@@ -1,10 +1,14 @@
 # PDF → XTC
 
-Convert two-column PDFs to **XTC / XTCH** files for **XTEink X4 / X3** e-readers.
+Convert two-column PDFs to **XTC / XTCH** or **EPUB** files for
+**XTEink X4 / X3** e-readers.
 
 Unlike a plain full-page conversion, each text column becomes its own
 full-screen page — so a two-column book stays readable on a 480×800 e-ink
-display. Everything runs locally in your browser: no uploads, no server.
+display. For text PDFs you can instead export a reflowable **EPUB**: the text
+is extracted column by column in the correct reading order, so font size and
+spacing are controlled on the device. Everything runs locally in your
+browser: no uploads, no server.
 
 ## Features
 
@@ -15,6 +19,9 @@ display. Everything runs locally in your browser: no uploads, no server.
 - Live side-by-side preview: original page vs. real 1-bit/2-bit device output.
 - Options: XTC (1-bit) / XTCH (2-bit grayscale), contrast, text darkness,
   dithering, crop padding, device (X4 / X3), page range.
+- **EPUB export** (reflowable): column-aware text extraction with paragraph
+  reconstruction, hyphenation merge, page-number stripping, heading detection
+  and chapters from the PDF outline. Preview shows the extracted text per page.
 - Single-click export and download; title/author metadata embedded.
 
 ## Development

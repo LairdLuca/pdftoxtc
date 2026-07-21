@@ -21,9 +21,20 @@ export default function OptionsPanel({ options, onChange }: Props) {
         >
           <option value="xtc">XTC — 1-bit B/W (crisp text)</option>
           <option value="xtch">XTCH — 2-bit grayscale</option>
+          <option value="epub">EPUB — reflowable text</option>
         </select>
       </label>
 
+      {options.format === 'epub' && (
+        <p className="panel-note">
+          Text is extracted column by column and re-flowed: font size, margins
+          and line spacing are then controlled on the device. Works only on
+          PDFs with real text (not scans). The column split below is still
+          used to keep the reading order correct.
+        </p>
+      )}
+
+      {options.format !== 'epub' && (<>
       <label className="field">
         <span>Device</span>
         <select
@@ -70,6 +81,7 @@ export default function OptionsPanel({ options, onChange }: Props) {
           onChange={e => set('paddingPct', Number(e.target.value))}
         />
       </label>
+      </>)}
     </div>
   )
 }

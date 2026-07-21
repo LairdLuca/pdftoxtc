@@ -9,8 +9,10 @@ export const DEVICE_DIMENSIONS = {
 
 export type TargetDevice = keyof typeof DEVICE_DIMENSIONS
 
+export type ExportFormat = 'xtc' | 'xtch' | 'epub'
+
 export interface ConvertOptions {
-  format: 'xtc' | 'xtch'
+  format: ExportFormat
   dither: boolean
   contrast: number // 0..3
   threshold: number // 80..176, 128 = neutral
@@ -92,7 +94,7 @@ export function processPage(
 /**
  * Encode a processed (device-sized, quantized) canvas as an XTG/XTH page blob.
  */
-export function encodePage(canvas: HTMLCanvasElement, format: 'xtc' | 'xtch'): ArrayBuffer {
+export function encodePage(canvas: HTMLCanvasElement, format: ExportFormat): ArrayBuffer {
   const ctx = canvas.getContext('2d', { willReadFrequently: true })!
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
   return format === 'xtch' ? imageDataToXth(imageData) : imageDataToXtg(imageData)

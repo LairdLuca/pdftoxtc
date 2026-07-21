@@ -2,6 +2,7 @@ interface Props {
   fileNameBase: string
   title: string
   author: string
+  language: string
   rangeFrom: number
   rangeTo: number
   numPages: number
@@ -11,6 +12,7 @@ interface Props {
     fileNameBase: string
     title: string
     author: string
+    language: string
     rangeFrom: number
     rangeTo: number
   }>) => void
@@ -18,7 +20,7 @@ interface Props {
 }
 
 export default function ExportBar({
-  fileNameBase, title, author, rangeFrom, rangeTo, numPages,
+  fileNameBase, title, author, language, rangeFrom, rangeTo, numPages,
   extension, exporting, onChange, onExport
 }: Props) {
   const rangeValid = rangeFrom >= 1 && rangeTo <= numPages && rangeFrom <= rangeTo
@@ -36,6 +38,17 @@ export default function ExportBar({
         <span>Author (optional)</span>
         <input value={author} onChange={e => onChange({ author: e.target.value })} />
       </label>
+
+      {extension === 'epub' && (
+        <label className="field">
+          <span>Language (for hyphenation/dictionary)</span>
+          <input
+            value={language}
+            placeholder="en, it, de…"
+            onChange={e => onChange({ language: e.target.value })}
+          />
+        </label>
+      )}
 
       <label className="field">
         <span>File name</span>
