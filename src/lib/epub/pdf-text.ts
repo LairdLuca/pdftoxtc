@@ -64,7 +64,7 @@ export async function chaptersFromText(
   const expected = new Map<string, string>(
     outlineTitles
       .map(t => [fingerprint(t), t] as [string, string])
-      .filter(([key]) => key.length >= 8)
+      .filter(([key]) => key.length >= 5)
   )
   const marks: { title: string; page: number }[] = []
 
@@ -96,7 +96,7 @@ export async function chaptersFromText(
     ordered.forEach((line, i) => {
       const text = line.text.trim()
       const key = fingerprint(text)
-      if (key.length >= 8 && expected.has(key)) {
+      if (key.length >= 5 && expected.has(key)) {
         marks.push({ title: expected.get(key)!, page: p })
         expected.delete(key) // a title counts once
         return
