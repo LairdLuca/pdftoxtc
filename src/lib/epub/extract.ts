@@ -114,6 +114,17 @@ function linesToFragments(lines: Line[], pageHeight: number): Fragment[] {
     ? gaps.slice().sort((a, b) => a - b)[Math.floor(gaps.length / 2)]
     : bodySize * 1.4
 
+  // Right edge of the text block: 90th percentile so one overhanging line
+  // (a stray glyph, a page header) does not skew it.
+  const ends = kept.map(k => k.line.x1).sort((a, b) => a - b)
+  const columnRight = ends[Math.floor(ends.length * 0.9)]
+  const shortLineLimit = columnRight - (columnRight - columnLeft) * 0.06
+  // A short line only means "paragraph ends here" in justified text, where
+  // every other line is stretched to the right edge. In ragged-right text
+  // lines stop wherever the last word fits, so the signal is meaningless.
+  const flush = kept.filter(k => k.line.x1 >= shortLineLimit).length
+  const justified = flush / kept.length > 0.6
+
   const fragments: Fragment[] = []
   let current: Fragment | null = null
 
@@ -122,8 +133,10 @@ function linesToFragments(lines: Line[], pageHeight: number): Fragment[] {
     const heading = line.size > bodySize * 1.25
     const indented = line.x0 - columnLeft > line.size * 0.6
     const gap = i > 0 ? kept[i - 1].line.y - line.y : 0
+    // Previous line stopped short of the right edge: it closed a paragraph.
+    const afterShortLine = justified && i > 0 && kept[i - 1].line.x1 < shortLineLimit
     const newParagraph =
-      !current || heading || current.heading || indented ||
+      !current || heading || current.heading || indented || afterShortLine ||
       (i > 0 && gap > medianGap * 1.6)
 
     if (newParagraph) {
