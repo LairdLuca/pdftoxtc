@@ -13,7 +13,7 @@ import {
 } from './lib/pipeline'
 import { buildXtcFromPages } from './lib/encode/xtc'
 import { TextFlow, type FlowParagraph } from './lib/epub/extract'
-import { extractPageFragments, chaptersFromOutline } from './lib/epub/pdf-text'
+import { extractPageFragments, chapterRanges } from './lib/epub/pdf-text'
 import { buildEpub, type EpubChapter } from './lib/epub/build'
 import TextPreview from './components/TextPreview'
 import { downloadBlob } from './lib/download'
@@ -170,7 +170,7 @@ export default function App() {
     const total = rangeTo - rangeFrom + 1
     setExporting({ done: 0, total })
 
-    const ranges = await chaptersFromOutline(doc, rangeFrom, rangeTo)
+    const ranges = await chapterRanges(doc, rangeFrom, rangeTo)
     if (ranges.length === 0) {
       ranges.push({ title: '', from: rangeFrom, to: rangeTo })
     }
